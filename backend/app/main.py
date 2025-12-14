@@ -31,9 +31,14 @@ async def lifespan(app: FastAPI):
     """Manage application lifecycle"""
     # Startup
     logger.info("🚀 Starting Traffic Optimization System")
+    import os
+
+    PORT = int(os.getenv("PORT", settings.PORT))
+
     logger.info(
-    f"📡 WebSocket endpoint will be available at: ws://{settings.HOST}:{settings.PORT}/ws"
-)
+        f"📡 WebSocket endpoint will be available at: ws://{settings.HOST}:{PORT}/ws"
+        )
+
     yield
     # Shutdown
     logger.info("🛑 Shutting down Traffic Optimization System")
