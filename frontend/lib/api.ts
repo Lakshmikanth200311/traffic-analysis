@@ -7,8 +7,8 @@ import {
 } from "../types/traffic";
 
 // IMPORTANT: Use localhost, not 0.0.0.0
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL!;
+
 
 console.log("🔧 API Base URL configured:", API_BASE_URL);
 
@@ -50,9 +50,9 @@ api.interceptors.response.use(
     if (error.code === "ECONNREFUSED" || error.code === "ERR_NETWORK") {
       const errorMsg =
         "🔌 Cannot connect to backend server. Please verify:\n" +
-        "1. Backend is running on http://localhost:8000\n" +
-        "2. Check backend logs for errors\n" +
-        "3. Try accessing http://localhost:8000/healthz in your browser";
+        "1. Backend is running and reachable\n" +
+        "2. Check Render logs for backend errors\n" +
+        "3. Verify NEXT_PUBLIC_API_URL is set correctly";
       console.error(errorMsg);
       throw new Error(
         "Cannot connect to backend server. Please make sure the server is running on port 8000."
@@ -233,7 +233,7 @@ if (typeof window !== "undefined") {
   // Only run in browser
   setTimeout(async () => {
     try {
-      const testUrl = API_BASE_URL.replace("/api/v1", "/healthz");
+      const testUrl = `${process.env.NEXT_PUBLIC_API_URL}/healthz`;
       console.log("🔍 Testing backend connectivity at:", testUrl);
       const response = await fetch(testUrl);
       if (response.ok) {

@@ -5,7 +5,7 @@ import os
 class Settings(BaseSettings):
     # Server settings
     HOST: str = "0.0.0.0"
-    PORT: int = 8000
+    PORT: int = (os.getenv("PORT", 8000))
     DEBUG: bool = True
     CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:8000"]
     
@@ -15,12 +15,14 @@ class Settings(BaseSettings):
     WS_MAX_SIZE: int = 1000000  # 1MB
     
     # Model settings
+    USE_YOLO: bool = os.getenv("USE_YOLO", "false").lower() == "true"
     YOLO_MODEL: str = "yolov8n.pt"
     CONFIDENCE_THRESHOLD: float = 0.4
     IOU_THRESHOLD: float = 0.4
     VEHICLE_CLASSES: List[int] = [2, 3, 5, 7]  # COCO: car, motorcycle, bus, truck
     MAX_FPS: int = 10
-    
+    USE_YOLO: bool = False
+
     # Timing parameters
     MIN_GREEN: int = 10
     MAX_GREEN: int = 60

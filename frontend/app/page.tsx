@@ -59,7 +59,7 @@ const defaultCounts: VehicleCounts = {
 };
 
 // API Service
-const API_BASE_URL = "http://localhost:8000/api/v1";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 
 const apiService = {
   async getState(): Promise<SystemState> {
@@ -134,7 +134,14 @@ const useWebSocket = (onMessage: (data: any) => void) => {
     setConnectionStatus("connecting");
 
     try {
-      const ws = new WebSocket("ws://localhost:8000/ws");
+      // ✅ FINAL WebSocket URL logic (local + cloud safe)
+      const WS_URL =
+      process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:8000/ws";
+    
+    console.log("🔌 WebSocket URL:", WS_URL);
+    
+    const ws = new WebSocket(WS_URL);
+
 
       ws.onopen = () => {
         console.log("✅ WebSocket connected successfully");
@@ -591,7 +598,11 @@ export default function TrafficOptimizer() {
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       onClick={() =>
-                        window.open("http://localhost:8000/docs", "_blank")
+                        window.open(
+                          (process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1")
+                            .replace("/api/v1", "") + "/docs",
+                          "_blank"
+                        )
                       }
                       className="px-3 py-2 text-sm border rounded-lg hover:bg-gray-100 transition"
                     >

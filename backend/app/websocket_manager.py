@@ -9,6 +9,8 @@ logger = logging.getLogger(__name__)
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[WebSocket, str] = {}
+    def has_connections(self) -> bool:
+        return len(self.active_connections) > 0
 
     async def connect(self, websocket: WebSocket):
         await websocket.accept()

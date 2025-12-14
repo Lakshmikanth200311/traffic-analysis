@@ -7,7 +7,8 @@ from app.models.schemas import Approach, CyclePlan, VehicleCounts, LiveCount
 from app.models.state import TrafficSystemState
 from app.services.timing import TrafficTimingOptimizer
 from app.pipelines.camera import CameraPipeline
-from app.websocket_manager import broadcaster
+from app.websocket_manager import broadcaster, websocket_manager
+
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,6 @@ class TrafficSimulator:
         
         self.is_running = True
         self.system_state.running = True
-        
         logger.info(f"🚀 Starting traffic simulator with configs: {list(camera_configs.keys())}")
         
         # FIX: Convert string keys to Approach enum and ensure we have all approaches
