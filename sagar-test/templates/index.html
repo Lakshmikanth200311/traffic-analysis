@@ -1,0 +1,1042 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Traffic Analysis System V2 - Real-time Monitoring</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        min-height: 100vh;
+        color: #333;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+
+      .header {
+        text-align: center;
+        margin-bottom: 30px;
+        color: white;
+      }
+
+      .header h1 {
+        font-size: 2.5em;
+        margin-bottom: 10px;
+        text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+      }
+
+      .status-bar {
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 15px;
+        padding: 15px;
+        margin-bottom: 30px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: white;
+      }
+
+      .connection-status {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .status-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #ff4757;
+        animation: pulse 2s infinite;
+      }
+
+      .status-dot.connected {
+        background: #2ed573;
+      }
+
+      @keyframes pulse {
+        0% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      .main-grid {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 30px;
+        margin-bottom: 30px;
+      }
+
+      .upload-section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .traffic-control {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+      }
+
+      .upload-area {
+        border: 3px dashed #e0e0e0;
+        border-radius: 15px;
+        padding: 40px 20px;
+        text-align: center;
+        margin-bottom: 20px;
+        transition: all 0.3s ease;
+        cursor: pointer;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .upload-area:hover {
+        border-color: #2a5298;
+        background: rgba(42, 82, 152, 0.05);
+      }
+
+      .upload-area.dragover {
+        border-color: #2ed573;
+        background: rgba(46, 213, 115, 0.1);
+      }
+
+      .file-input {
+        position: absolute;
+        opacity: 0;
+        width: 100%;
+        height: 100%;
+        cursor: pointer;
+      }
+
+      .upload-icon {
+        font-size: 3em;
+        color: #ccc;
+        margin-bottom: 15px;
+      }
+
+      .upload-text {
+        color: #666;
+        font-size: 1.1em;
+      }
+
+      .btn {
+        background: linear-gradient(45deg, #2a5298, #1e3c72);
+        color: white;
+        border: none;
+        padding: 12px 30px;
+        border-radius: 25px;
+        font-size: 16px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin: 5px;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px rgba(42, 82, 152, 0.3);
+      }
+
+      .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+
+      .btn-danger {
+        background: linear-gradient(45deg, #ff4757, #ff3742);
+      }
+
+      .btn-success {
+        background: linear-gradient(45deg, #2ed573, #17c0eb);
+      }
+
+      /* Traffic Light Styles */
+      .traffic-light-container {
+        text-align: center;
+        margin-bottom: 30px;
+      }
+
+      .traffic-light {
+        display: inline-block;
+        background: #333;
+        padding: 25px 20px;
+        border-radius: 20px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        margin-bottom: 20px;
+      }
+
+      .light {
+        width: 80px;
+        height: 80px;
+        border-radius: 50%;
+        margin: 15px auto;
+        border: 4px solid #555;
+        transition: all 0.5s ease;
+        position: relative;
+      }
+
+      .light::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .light.red {
+        background: #ff4757;
+        box-shadow: 0 0 30px #ff4757, inset 0 0 20px rgba(255, 255, 255, 0.2);
+      }
+
+      .light.yellow {
+        background: #ffa502;
+        box-shadow: 0 0 30px #ffa502, inset 0 0 20px rgba(255, 255, 255, 0.2);
+      }
+
+      .light.green {
+        background: #2ed573;
+        box-shadow: 0 0 30px #2ed573, inset 0 0 20px rgba(255, 255, 255, 0.2);
+      }
+
+      .light.off {
+        background: #666;
+        box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+      }
+
+      .traffic-info {
+        background: #f8f9fa;
+        border-radius: 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+      }
+
+      .info-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+
+      .info-row:last-child {
+        border-bottom: none;
+        margin-bottom: 0;
+      }
+
+      .info-label {
+        font-weight: 600;
+        color: #555;
+      }
+
+      .info-value {
+        color: #333;
+        font-weight: 500;
+      }
+
+      .intensity-indicator {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.9em;
+        font-weight: 600;
+      }
+
+      .intensity-low {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .intensity-medium {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .intensity-high {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .countdown {
+        font-size: 2em;
+        font-weight: bold;
+        color: #2a5298;
+        margin: 10px 0;
+      }
+
+      /* Results Section */
+      .results-section {
+        background: rgba(255, 255, 255, 0.95);
+        border-radius: 20px;
+        padding: 30px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+        margin-top: 30px;
+        display: none;
+      }
+
+      .results-section.active {
+        display: block;
+        animation: slideInUp 0.5s ease;
+      }
+
+      @keyframes slideInUp {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .detection-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 15px;
+        margin: 20px 0;
+      }
+
+      .detection-item {
+        background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+        padding: 15px;
+        border-radius: 10px;
+        border-left: 4px solid #2a5298;
+        transition: transform 0.2s ease;
+      }
+
+      .detection-item:hover {
+        transform: translateY(-2px);
+      }
+
+      .vehicle-count-display {
+        background: linear-gradient(45deg, #2ed573, #17c0eb);
+        color: white;
+        padding: 20px;
+        border-radius: 15px;
+        text-align: center;
+        font-size: 1.5em;
+        font-weight: bold;
+        margin: 20px 0;
+      }
+
+      .media-display {
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .media-display img,
+      .media-display video {
+        max-width: 100%;
+        border-radius: 15px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+      }
+
+      .progress-bar {
+        background: #e9ecef;
+        border-radius: 10px;
+        height: 8px;
+        margin: 20px 0;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        background: linear-gradient(45deg, #2a5298, #1e3c72);
+        height: 100%;
+        width: 0%;
+        transition: width 0.3s ease;
+      }
+
+      .log-section {
+        background: #1a1a1a;
+        color: #00ff00;
+        border-radius: 10px;
+        padding: 20px;
+        margin-top: 20px;
+        font-family: "Courier New", monospace;
+        font-size: 0.9em;
+        max-height: 300px;
+        overflow-y: auto;
+      }
+
+      .log-entry {
+        margin-bottom: 5px;
+        padding: 2px 0;
+      }
+
+      .log-timestamp {
+        color: #888;
+      }
+
+      /* Loading Animation */
+      .loading-spinner {
+        display: inline-block;
+        width: 20px;
+        height: 20px;
+        border: 3px solid #f3f3f3;
+        border-top: 3px solid #2a5298;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      /* Mobile Responsive */
+      @media (max-width: 768px) {
+        .main-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .container {
+          padding: 15px;
+        }
+
+        .header h1 {
+          font-size: 2em;
+        }
+
+        .light {
+          width: 60px;
+          height: 60px;
+        }
+
+        .light::after {
+          width: 45px;
+          height: 45px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1>🚦 Traffic Analysis System V2</h1>
+        <p>Real-time Vehicle Detection & Adaptive Traffic Control</p>
+      </div>
+
+      <!-- Status Bar -->
+      <div class="status-bar">
+        <div class="connection-status">
+          <div class="status-dot" id="connectionDot"></div>
+          <span id="connectionStatus">Connecting...</span>
+        </div>
+        <div id="systemTime"></div>
+      </div>
+
+      <!-- Main Grid -->
+      <div class="main-grid">
+        <!-- Upload Section -->
+        <div class="upload-section">
+          <h2>📤 Upload & Analysis</h2>
+
+          <!-- Image Upload -->
+          <div class="upload-area" id="imageUploadArea">
+            <input
+              type="file"
+              class="file-input"
+              id="imageInput"
+              accept="image/*"
+            />
+            <div class="upload-icon">📸</div>
+            <div class="upload-text">
+              <strong>Click or drag image here</strong><br />
+              Supported: JPG, PNG, WebP
+            </div>
+          </div>
+
+          <!-- Video Upload -->
+          <div class="upload-area" id="videoUploadArea">
+            <input
+              type="file"
+              class="file-input"
+              id="videoInput"
+              accept="video/*"
+            />
+            <div class="upload-icon">🎥</div>
+            <div class="upload-text">
+              <strong>Click or drag video here</strong><br />
+              Supported: MP4, AVI, MOV
+            </div>
+          </div>
+
+          <!-- Control Buttons -->
+          <div style="text-align: center; margin-top: 20px">
+            <button class="btn" id="startAnalysis" disabled>
+              <span class="btn-text">Start Analysis</span>
+              <span class="loading-spinner" style="display: none"></span>
+            </button>
+            <button class="btn btn-danger" id="stopAnalysis" disabled>
+              Stop Analysis
+            </button>
+            <button class="btn" id="clearResults">Clear Results</button>
+          </div>
+        </div>
+
+        <!-- Traffic Control Panel -->
+        <div class="traffic-control">
+          <h2>🚦 Traffic Light Control</h2>
+
+          <!-- Traffic Light Display -->
+          <div class="traffic-light-container">
+            <div class="traffic-light">
+              <div class="light red off" id="redLight"></div>
+              <div class="light yellow off" id="yellowLight"></div>
+              <div class="light green off" id="greenLight"></div>
+            </div>
+            <div class="countdown" id="countdown">--</div>
+          </div>
+
+          <!-- Traffic Information -->
+          <div class="traffic-info">
+            <div class="info-row">
+              <span class="info-label">Current Light:</span>
+              <span class="info-value" id="currentLight">RED</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Vehicle Count:</span>
+              <span class="info-value" id="vehicleCount">0</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Traffic Intensity:</span>
+              <span class="info-value">
+                <span
+                  class="intensity-indicator intensity-low"
+                  id="trafficIntensity"
+                  >LOW</span
+                >
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Simulation:</span>
+              <span class="info-value" id="simulationStatus">Stopped</span>
+            </div>
+          </div>
+
+          <!-- Control Buttons -->
+          <div style="text-align: center">
+            <button class="btn btn-success" id="startSimulation">
+              Start Simulation
+            </button>
+            <button class="btn btn-danger" id="stopSimulation">
+              Stop Simulation
+            </button>
+            <button class="btn" id="manualChange">Manual Change</button>
+            <button class="btn" id="resetTraffic">Reset</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Results Section -->
+      <div class="results-section" id="resultsSection">
+        <h2>📊 Analysis Results</h2>
+
+        <!-- Vehicle Count Display -->
+        <div class="vehicle-count-display" id="vehicleCountDisplay">
+          Vehicles Detected: <span id="detectedCount">0</span>
+        </div>
+
+        <!-- Progress Bar for Video Processing -->
+        <div id="progressContainer" style="display: none">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progressFill"></div>
+          </div>
+          <div style="text-align: center; margin-top: 10px">
+            <span id="progressText">Processing...</span>
+          </div>
+        </div>
+
+        <!-- Detection Grid -->
+        <div class="detection-grid" id="detectionGrid"></div>
+
+        <!-- Media Display -->
+        <div class="media-display" id="mediaDisplay"></div>
+      </div>
+
+      <!-- System Log -->
+      <div class="log-section">
+        <h3 style="color: #00ff00; margin-bottom: 15px">🖥️ System Log</h3>
+        <div id="systemLog"></div>
+      </div>
+    </div>
+
+    <script>
+      // Global variables
+      let socket;
+      let currentFile = null;
+      let fileType = null;
+      let isProcessing = false;
+
+      // Initialize application
+      document.addEventListener("DOMContentLoaded", function () {
+        initializeWebSocket();
+        setupEventListeners();
+        updateSystemTime();
+        addSystemLog("System initialized");
+      });
+
+      // WebSocket Connection
+      function initializeWebSocket() {
+        socket = io();
+
+        socket.on("connect", function () {
+          updateConnectionStatus(true);
+          addSystemLog("WebSocket connected");
+          socket.emit("request_traffic_state");
+        });
+
+        socket.on("disconnect", function () {
+          updateConnectionStatus(false);
+          addSystemLog("WebSocket disconnected");
+        });
+
+        socket.on("traffic_update", function (data) {
+          updateTrafficDisplay(data.traffic_state);
+          addSystemLog(`Traffic update: ${data.type}`);
+        });
+
+        socket.on("traffic_state", function (data) {
+          updateTrafficDisplay(data);
+        });
+
+        socket.on("video_frame_update", function (data) {
+          updateVideoProgress(data);
+          updateTrafficDisplay(data.traffic_state);
+          addSystemLog(
+            `Frame ${data.frame_number}: ${data.vehicle_count} vehicles`
+          );
+        });
+
+        socket.on("video_processing_complete", function (data) {
+          handleVideoComplete(data);
+          addSystemLog(
+            `Video processing completed: ${data.total_frames} frames`
+          );
+        });
+
+        socket.on("processing_error", function (data) {
+          addSystemLog(`Error: ${data.error}`, "error");
+          resetProcessingState();
+        });
+
+        socket.on("connection_status", function (data) {
+          addSystemLog(data.message);
+        });
+      }
+
+      // Event Listeners
+      function setupEventListeners() {
+        // File inputs
+        const imageInput = document.getElementById("imageInput");
+        const videoInput = document.getElementById("videoInput");
+        const imageArea = document.getElementById("imageUploadArea");
+        const videoArea = document.getElementById("videoUploadArea");
+
+        // File input changes
+        imageInput.addEventListener("change", function (e) {
+          handleFileSelect(e.target.files[0], "image");
+        });
+
+        videoInput.addEventListener("change", function (e) {
+          handleFileSelect(e.target.files[0], "video");
+        });
+
+        // Drag and drop
+        setupDragAndDrop(imageArea, imageInput);
+        setupDragAndDrop(videoArea, videoInput);
+
+        // Control buttons
+        document
+          .getElementById("startAnalysis")
+          .addEventListener("click", startAnalysis);
+        document
+          .getElementById("stopAnalysis")
+          .addEventListener("click", stopAnalysis);
+        document
+          .getElementById("clearResults")
+          .addEventListener("click", clearResults);
+
+        // Traffic control buttons
+        document
+          .getElementById("startSimulation")
+          .addEventListener("click", () => {
+            socket.emit("start_simulation");
+            addSystemLog("Traffic simulation started");
+          });
+
+        document
+          .getElementById("stopSimulation")
+          .addEventListener("click", () => {
+            socket.emit("stop_simulation");
+            addSystemLog("Traffic simulation stopped");
+          });
+
+        document
+          .getElementById("manualChange")
+          .addEventListener("click", () => {
+            socket.emit("manual_traffic_control", { action: "change_light" });
+            addSystemLog("Manual light change requested");
+          });
+
+        document
+          .getElementById("resetTraffic")
+          .addEventListener("click", () => {
+            socket.emit("manual_traffic_control", { action: "reset" });
+            addSystemLog("Traffic system reset");
+          });
+      }
+
+      // Drag and Drop Setup
+      function setupDragAndDrop(area, input) {
+        area.addEventListener("dragover", function (e) {
+          e.preventDefault();
+          area.classList.add("dragover");
+        });
+
+        area.addEventListener("dragleave", function (e) {
+          e.preventDefault();
+          area.classList.remove("dragover");
+        });
+
+        area.addEventListener("drop", function (e) {
+          e.preventDefault();
+          area.classList.remove("dragover");
+
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            const file = files[0];
+            const type = area.id.includes("image") ? "image" : "video";
+            handleFileSelect(file, type);
+          }
+        });
+
+        area.addEventListener("click", function () {
+          input.click();
+        });
+      }
+
+      // File Selection Handler
+      function handleFileSelect(file, type) {
+        if (!file) return;
+
+        currentFile = file;
+        fileType = type;
+
+        // Update UI
+        const area = document.getElementById(type + "UploadArea");
+        const icon = area.querySelector(".upload-icon");
+        const text = area.querySelector(".upload-text");
+
+        icon.textContent = type === "image" ? "📸" : "🎥";
+        text.innerHTML = `<strong>Selected: ${
+          file.name
+        }</strong><br>Size: ${formatFileSize(file.size)}`;
+
+        // Enable start button
+        document.getElementById("startAnalysis").disabled = false;
+
+        addSystemLog(`File selected: ${file.name} (${type})`);
+      }
+
+      // Start Analysis
+      async function startAnalysis() {
+        if (!currentFile || isProcessing) return;
+
+        isProcessing = true;
+        updateProcessingState(true);
+
+        const formData = new FormData();
+        formData.append("file", currentFile);
+
+        try {
+          const endpoint =
+            fileType === "image" ? "/api/upload/image" : "/api/upload/video";
+
+          const response = await fetch(endpoint, {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+
+          if (result.success) {
+            if (fileType === "image") {
+              handleImageResult(result);
+            } else {
+              handleVideoStart(result);
+            }
+            addSystemLog(`Analysis started for ${currentFile.name}`);
+          } else {
+            throw new Error(result.error);
+          }
+        } catch (error) {
+          addSystemLog(`Analysis failed: ${error.message}`, "error");
+          resetProcessingState();
+        }
+      }
+
+      // Handle Image Result
+      function handleImageResult(result) {
+        showResults();
+
+        // Update vehicle count
+        document.getElementById("detectedCount").textContent =
+          result.vehicle_count;
+
+        // Display detections
+        displayDetections(result.detections);
+
+        // Display annotated image
+        const mediaDisplay = document.getElementById("mediaDisplay");
+        mediaDisplay.innerHTML = `<img src="${result.annotated_image_url}" alt="Annotated Image">`;
+
+        resetProcessingState();
+      }
+
+      // Handle Video Start
+      function handleVideoStart(result) {
+        showResults();
+        document.getElementById("progressContainer").style.display = "block";
+        addSystemLog(`Video processing started: ${result.filename}`);
+      }
+
+      // Handle Video Complete
+      function handleVideoComplete(data) {
+        document.getElementById("progressContainer").style.display = "none";
+
+        // Display final video
+        const mediaDisplay = document.getElementById("mediaDisplay");
+        mediaDisplay.innerHTML = `<video controls src="${data.annotated_video_url}"></video>`;
+
+        // Update final stats
+        document.getElementById("detectedCount").textContent = Math.round(
+          data.average_vehicles
+        );
+
+        resetProcessingState();
+        addSystemLog(
+          `Processing completed. Average vehicles: ${data.average_vehicles.toFixed(
+            1
+          )}`
+        );
+      }
+
+      // Update Video Progress
+      function updateVideoProgress(data) {
+        const progress = (data.frame_number / data.total_frames) * 100;
+        document.getElementById("progressFill").style.width = progress + "%";
+        document.getElementById(
+          "progressText"
+        ).textContent = `Processing frame ${data.frame_number}/${
+          data.total_frames
+        } (${progress.toFixed(1)}%)`;
+
+        // Update current detections
+        displayDetections(data.detections);
+        document.getElementById("detectedCount").textContent =
+          data.vehicle_count;
+      }
+
+      // Display Detections
+      function displayDetections(detections) {
+        const grid = document.getElementById("detectionGrid");
+        grid.innerHTML = "";
+
+        detections.forEach((detection) => {
+          const item = document.createElement("div");
+          item.className = "detection-item";
+          item.innerHTML = `
+                    <div style="font-weight: bold; color: #2a5298;">${
+                      detection.class
+                    }</div>
+                    <div>Confidence: ${(detection.confidence * 100).toFixed(
+                      1
+                    )}%</div>
+                    <div style="font-size: 0.9em; color: #666;">
+                        Box: [${detection.bbox.join(", ")}]
+                    </div>
+                `;
+          grid.appendChild(item);
+        });
+      }
+
+      // Update Traffic Display
+      function updateTrafficDisplay(trafficState) {
+        // Update lights
+        const lights = ["red", "yellow", "green"];
+        lights.forEach((light) => {
+          const element = document.getElementById(light + "Light");
+          if (trafficState.current_light.toLowerCase() === light) {
+            element.classList.remove("off");
+            element.classList.add(light);
+          } else {
+            element.classList.add("off");
+            element.classList.remove(light);
+          }
+        });
+
+        // Update countdown
+        document.getElementById("countdown").textContent =
+          Math.ceil(trafficState.time_remaining) + "s";
+
+        // Update info panel
+        document.getElementById("currentLight").textContent =
+          trafficState.current_light;
+        document.getElementById("vehicleCount").textContent =
+          trafficState.vehicle_count;
+
+        // Update traffic intensity indicator
+        const intensityElement = document.getElementById("trafficIntensity");
+        intensityElement.textContent = trafficState.traffic_intensity;
+        intensityElement.className = `intensity-indicator intensity-${trafficState.traffic_intensity.toLowerCase()}`;
+
+        // Update simulation status
+        document.getElementById("simulationStatus").textContent =
+          trafficState.simulation_active ? "Running" : "Stopped";
+      }
+
+      // UI Helper Functions
+      function updateConnectionStatus(connected) {
+        const dot = document.getElementById("connectionDot");
+        const status = document.getElementById("connectionStatus");
+
+        if (connected) {
+          dot.classList.add("connected");
+          status.textContent = "Connected";
+        } else {
+          dot.classList.remove("connected");
+          status.textContent = "Disconnected";
+        }
+      }
+
+      function updateProcessingState(processing) {
+        const startBtn = document.getElementById("startAnalysis");
+        const stopBtn = document.getElementById("stopAnalysis");
+        const spinner = startBtn.querySelector(".loading-spinner");
+        const text = startBtn.querySelector(".btn-text");
+
+        if (processing) {
+          startBtn.disabled = true;
+          stopBtn.disabled = false;
+          spinner.style.display = "inline-block";
+          text.style.display = "none";
+        } else {
+          startBtn.disabled = false;
+          stopBtn.disabled = true;
+          spinner.style.display = "none";
+          text.style.display = "inline";
+        }
+      }
+
+      function resetProcessingState() {
+        isProcessing = false;
+        updateProcessingState(false);
+      }
+
+      function showResults() {
+        const resultsSection = document.getElementById("resultsSection");
+        resultsSection.style.display = "block";
+        resultsSection.classList.add("active");
+      }
+
+      function clearResults() {
+        document.getElementById("resultsSection").style.display = "none";
+        document.getElementById("detectionGrid").innerHTML = "";
+        document.getElementById("mediaDisplay").innerHTML = "";
+        document.getElementById("detectedCount").textContent = "0";
+        document.getElementById("progressContainer").style.display = "none";
+
+        // Reset file selection
+        currentFile = null;
+        fileType = null;
+        document.getElementById("imageInput").value = "";
+        document.getElementById("videoInput").value = "";
+        document.getElementById("startAnalysis").disabled = true;
+
+        // Reset upload areas
+        resetUploadArea("imageUploadArea", "📸", "Click or drag image here");
+        resetUploadArea("videoUploadArea", "🎥", "Click or drag video here");
+
+        addSystemLog("Results cleared");
+      }
+
+      function resetUploadArea(areaId, icon, text) {
+        const area = document.getElementById(areaId);
+        const iconEl = area.querySelector(".upload-icon");
+        const textEl = area.querySelector(".upload-text");
+
+        iconEl.textContent = icon;
+        textEl.innerHTML = `<strong>${text}</strong><br>Supported formats`;
+      }
+
+      function stopAnalysis() {
+        isProcessing = false;
+        resetProcessingState();
+        addSystemLog("Analysis stopped by user");
+      }
+
+      function updateSystemTime() {
+        const timeElement = document.getElementById("systemTime");
+        const now = new Date();
+        timeElement.textContent = now.toLocaleTimeString();
+        setTimeout(updateSystemTime, 1000);
+      }
+
+      function addSystemLog(message, type = "info") {
+        const logContainer = document.getElementById("systemLog");
+        const timestamp = new Date().toLocaleTimeString();
+        const logEntry = document.createElement("div");
+        logEntry.className = "log-entry";
+
+        const color = type === "error" ? "#ff4757" : "#00ff00";
+        logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> <span style="color: ${color}">${message}</span>`;
+
+        logContainer.appendChild(logEntry);
+        logContainer.scrollTop = logContainer.scrollHeight;
+
+        // Keep only last 50 log entries
+        while (logContainer.children.length > 50) {
+          logContainer.removeChild(logContainer.firstChild);
+        }
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes === 0) return "0 Bytes";
+        const k = 1024;
+        const sizes = ["Bytes", "KB", "MB", "GB"];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+      }
+    </script>
+  </body>
+</html>

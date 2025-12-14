@@ -1,0 +1,27 @@
+# Core Flask dependencies
+flask==3.0.0
+flask-cors==4.0.0
+flask-socketio==5.3.6
+
+# Computer Vision & AI
+ultralytics==8.0.196
+opencv-python==4.8.1.78
+torch>=2.0.0
+torchvision>=0.15.0
+
+# Image/Video Processing
+Pillow==10.0.1
+numpy==1.24.3   
+
+# File handling
+werkzeug==3.0.1
+
+# WebSocket support
+python-socketio==5.9.0
+eventlet==0.33.3
+
+# Production server
+gunicorn==21.2.0
+
+# Utilities
+python-dotenv==1.0.0
